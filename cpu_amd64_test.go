@@ -92,22 +92,57 @@ func TestGODEBUGSelection(t *testing.T) {
 		return 0
 	}
 
-	if got := run(""); got != defaultImpl() {
-		t.Errorf("no GODEBUG: got %v, want %v", got, defaultImpl())
+	level := goamd64Level()
+	for _, godebug := range []string{
+		"",
+		"cpu.avx2=off,cpu.sha=off",
+		"cpu.avx=off",
+		"cpu.avx2=off,cpu.sha=off,cpu.ssse3=off",
+		"cpu.all=off",
+	} {
+		want := chooseImpl(detectCPU(godebug, level))
+		if got := run(godebug); got != want {
+			t.Errorf("GODEBUG=%s: got %v, want %v", godebug, got, want)
+		}
 	}
-	if goamd64Level() >= 3 {
-		t.Skip("GOAMD64 level 3 or higher: AVX2 cannot be turned off")
+
+	// Hiding AVX2 and SHA-NI must stop the delegation to crypto/sha1
+	// unless the GOAMD64 level makes AVX2 mandatory.
+	if level < 3 {
+		if got := run("cpu.avx2=off,cpu.sha=off"); got == implStdlib {
+			t.Errorf("cpu.avx2=off,cpu.sha=off: got %v", got)
+		}
 	}
-	wantNoFast := assemblyImpl()
-	if got := run("cpu.avx2=off,cpu.sha=off"); got != wantNoFast {
-		t.Errorf("cpu.avx2=off,cpu.sha=off: got %v, want %v", got, wantNoFast)
-	}
-	if got := run("cpu.avx=off"); got != wantNoFast {
-		t.Errorf("cpu.avx=off: got %v, want %v", got, wantNoFast)
-	}
-	if goamd64Level() < 2 {
+	if level < 2 {
 		if got := run("cpu.avx2=off,cpu.sha=off,cpu.ssse3=off"); got != implScalar {
 			t.Errorf("cpu.avx2=off,cpu.sha=off,cpu.ssse3=off: got %v, want scalar", got)
+		}
+	}
+}
+
+func TestChooseImpl(t *testing.T) {
+	all := cpuFeatures{true, true, true, true, true, true, true}
+	tests := []struct {
+		name string
+		edit func(*cpuFeatures)
+		want implementation
+	}{
+		{"all", func(*cpuFeatures) {}, implStdlib},
+		{"no SHA", func(f *cpuFeatures) { f.hasSHA = false }, implStdlib},
+		{"no AVX2", func(f *cpuFeatures) { f.hasAVX2 = false }, implStdlib},
+		{"no AVX2, no SHA", func(f *cpuFeatures) { f.hasAVX2, f.hasSHA = false, false }, implSSSE3},
+		{"no AVX2, no SSE4.1", func(f *cpuFeatures) { f.hasAVX2, f.hasSSE41 = false, false }, implSSSE3},
+		{"no BMI2, no SHA", func(f *cpuFeatures) { f.hasBMI2, f.hasSHA = false, false }, implSSSE3},
+		// crypto/sha1 needs AVX for its SHA-NI path too.
+		{"SHA without AVX", func(f *cpuFeatures) { f.hasAVX, f.hasAVX2 = false, false }, implSSSE3},
+		{"no AVX2, no SHA, no SSSE3", func(f *cpuFeatures) { f.hasAVX2, f.hasSHA, f.hasSSSE3 = false, false, false }, implScalar},
+		{"nothing", func(f *cpuFeatures) { *f = cpuFeatures{} }, implScalar},
+	}
+	for _, tt := range tests {
+		f := all
+		tt.edit(&f)
+		if got := chooseImpl(f); got != tt.want {
+			t.Errorf("%s: chooseImpl(%+v) = %v, want %v", tt.name, f, got, tt.want)
 		}
 	}
 }

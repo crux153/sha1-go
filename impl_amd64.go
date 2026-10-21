@@ -18,28 +18,25 @@ func blockSSSE3(dig *[5]uint32, p []byte)
 //go:noescape
 func blockAMD64(dig *[5]uint32, p []byte)
 
-// stdlibIsFast reports whether crypto/sha1 uses assembly on this CPU. The
-// conditions are copied from Go 1.26's crypto/sha1/sha1block_amd64.go.
-func stdlibIsFast() bool {
-	useAVX2 := x86.hasAVX && x86.hasAVX2 && x86.hasBMI1 && x86.hasBMI2
-	useSHANI := x86.hasAVX && x86.hasSHA && x86.hasSSE41 && x86.hasSSSE3
-	return useAVX2 || useSHANI
-}
-
 func defaultImpl() implementation {
-	if stdlibIsFast() {
-		return implStdlib
-	}
-	return assemblyImpl()
+	return chooseImpl(x86)
 }
 
-// assemblyImpl returns the fastest of this package's assembly code paths
-// that the CPU supports.
-func assemblyImpl() implementation {
-	if x86.hasSSSE3 {
+// chooseImpl returns the code path for a CPU with the features f.
+func chooseImpl(f cpuFeatures) implementation {
+	// crypto/sha1 uses assembly under these conditions, copied from Go
+	// 1.26's crypto/sha1/sha1block_amd64.go. Its SHA-NI code also needs
+	// AVX.
+	useAVX2 := f.hasAVX && f.hasAVX2 && f.hasBMI1 && f.hasBMI2
+	useSHANI := f.hasAVX && f.hasSHA && f.hasSSE41 && f.hasSSSE3
+	switch {
+	case useAVX2 || useSHANI:
+		return implStdlib
+	case f.hasSSSE3:
 		return implSSSE3
+	default:
+		return implScalar
 	}
-	return implScalar
 }
 
 // supportedImpls returns the code paths that can run on this machine.
