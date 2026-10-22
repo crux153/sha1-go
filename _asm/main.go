@@ -24,12 +24,16 @@
 //   - W[16..31] use the definition W[i] = rol1(W[i-3] ^ W[i-8] ^ W[i-14] ^
 //     W[i-16]). In a vector of four words, the last word depends on the
 //     first, so the vector is computed with W[i] taken as zero and then
-//     corrected with rol2 of the first lane's pre-rotation value.
+//     corrected with rol2 of the first lane's pre-rotation value. That
+//     correction is built with one 64-bit shift: PSHUFD duplicates the
+//     first lane into both halves of a quadword, and shifting that
+//     quadword right by 30 leaves rol2 of the lane in its low half.
 //   - W[32..79] use the equivalent form W[i] = rol2(W[i-6] ^ W[i-16] ^
 //     W[i-28] ^ W[i-32]), which has no dependency inside a vector.
-//   - Each vector of W gets the round constant added (PADDD) and is stored
-//     to a 16-byte aligned stack buffer, from which the scalar rounds add
-//     W[t]+K[t] with a single ADDL.
+//   - Each vector of W gets the round constant added (PADDD, from one of
+//     four registers that hold the constants for the whole call) and is
+//     stored to a 16-byte aligned stack buffer, from which the scalar
+//     rounds add W[t]+K[t] with a single ADDL.
 //
 // Vector v (W[4v..4v+3]) is computed during rounds 4(v-4)..4(v-4)+3, so it
 // is ready 16 rounds before it is needed. During the last 16 rounds the
@@ -67,17 +71,16 @@ const (
 	xT0    = "X8"
 	xT1    = "X9"
 	xBswap = "X11"
-	xK     = "X12"
 )
 
 func xw(v int) string { return fmt.Sprintf("X%d", v%8) }
 
+// xK returns the register that holds the round constant vector for vector
+// v (and so for rounds 4v..4v+3).
+func xK(v int) string { return [4]string{"X12", "X10", "X13", "X14"}[v/5] }
+
 // wk returns the buffer operand that holds W[t]+K[t].
 func wk(t int) string { return fmt.Sprintf("%d(%s)", 4*t, regBuf) }
-
-// kOffset returns the offset of the round constant vector for vector v in
-// the sha1K table.
-func kOffset(v int) int { return 16 * (v / 5) }
 
 // Round function types.
 const (
@@ -112,7 +115,8 @@ func fType(t int) int {
 //     The next round then needs at most one more instruction to finish f.
 //
 // Maj is written as (b & (c ^ d)) + (c & d); the two terms never have a
-// bit set in common, so they can be added to e separately.
+// bit set in common, so they can be added to e separately. The c & d term
+// does not depend on the previous round's a, so it is added first.
 //
 // Round 0 has no previous round and computes f directly from b, which
 // holds its true value there.
@@ -141,7 +145,7 @@ func round(t int, a, b, c, d, e string) []string {
 			ins = append(ins, "ADDL "+p+", "+e)
 		case fMaj:
 			// p = (c ^ d) & b, q = c & d
-			ins = append(ins, "ADDL "+p+", "+e, "ADDL "+q+", "+e)
+			ins = append(ins, "ADDL "+q+", "+e, "ADDL "+p+", "+e)
 		}
 		// b holds rol5 of its true value; make it rol30.
 		ins = append(ins, "ROLL $25, "+b)
@@ -177,9 +181,6 @@ func fixup(b string) []string {
 // its ring register and store W+K for it.
 func schedule(v int) []string {
 	var ins []string
-	if v%5 == 0 {
-		ins = append(ins, fmt.Sprintf("MOVOU sha1K<>+%d(SB), %s", kOffset(v), xK))
-	}
 	dst := xw(v)
 	if v < 8 {
 		// W[i..i+3] = rol1(W[i-3..i-1, 0] ^ W[i-8..] ^ W[i-14..] ^ W[i-16..]),
@@ -192,17 +193,14 @@ func schedule(v int) []string {
 			"PXOR "+xw(v-4)+", "+dst,
 			"PXOR "+xw(v-2)+", "+xT0,
 			"PXOR "+xT0+", "+dst,
-			"MOVO "+dst+", "+xT1,
-			"PSLLO $12, "+xT1, // lane 0 moved to lane 3
+			"PSHUFD $0, "+dst+", "+xT1, // lane 0 in all lanes
 			"MOVO "+dst+", "+xT0,
 			"PSLLL $1, "+dst,
 			"PSRLL $31, "+xT0,
+			"PSRLQ $30, "+xT1, // rol2 of lane 0 in lanes 0 and 2
 			"POR "+xT0+", "+dst,
-			"MOVO "+xT1+", "+xT0,
-			"PSLLL $2, "+xT1,
-			"PSRLL $30, "+xT0,
+			"PSLLO $12, "+xT1, // lane 0 moved to lane 3
 			"PXOR "+xT1+", "+dst,
-			"PXOR "+xT0+", "+dst,
 		)
 	} else {
 		// W[i..i+3] = rol2(W[i-6..i-3] ^ W[i-16..] ^ W[i-28..] ^ W[i-32..]).
@@ -221,20 +219,19 @@ func schedule(v int) []string {
 	}
 	return append(ins,
 		"MOVO "+dst+", "+xT0,
-		"PADDL "+xK+", "+xT0,
+		"PADDL "+xK(v)+", "+xT0,
 		fmt.Sprintf("MOVO %s, %d(%s)", xT0, 16*v, regBuf),
 	)
 }
 
 // load returns the SSE instructions that load vector v (v < 4) of the
-// block at ptr into its ring register and store W+K for it. The caller
-// must have loaded the first round constant into xK.
+// block at ptr into its ring register and store W+K for it.
 func load(v int, ptr string) []string {
 	return []string{
 		fmt.Sprintf("MOVOU %d(%s), %s", 16*v, ptr, xw(v)),
 		"PSHUFB " + xBswap + ", " + xw(v),
 		"MOVO " + xw(v) + ", " + xT0,
-		"PADDL " + xK + ", " + xT0,
+		"PADDL " + xK(0) + ", " + xT0,
 		fmt.Sprintf("MOVO %s, %d(%s)", xT0, 16*v, regBuf),
 	}
 }
@@ -299,9 +296,11 @@ func generate() []byte {
 		"ANDQ $~15, " + regBuf,
 		"",
 		"MOVOU bswapMask<>(SB), " + xBswap,
-		"MOVOU sha1K<>+0(SB), " + xK,
 	} {
 		emitLine(&w, s)
+	}
+	for v := 0; v < 20; v += 5 {
+		w.ins(fmt.Sprintf("MOVOU sha1K<>+%d(SB), %s", 16*(v/5), xK(v)))
 	}
 	for v := 0; v < 4; v++ {
 		for _, s := range load(v, regIn) {
@@ -329,10 +328,7 @@ func generate() []byte {
 			vec = schedule(g + 4)
 			comment = fmt.Sprintf("// Rounds %d-%d; W[%d..%d].", 4*g, 4*g+3, 4*(g+4), 4*(g+4)+3)
 		default:
-			if g == 16 {
-				vec = append(vec, "MOVOU sha1K<>+0(SB), "+xK)
-			}
-			vec = append(vec, load(g-16, regNext)...)
+			vec = load(g-16, regNext)
 			comment = fmt.Sprintf("// Rounds %d-%d; next block W[%d..%d].", 4*g, 4*g+3, 4*(g-16), 4*(g-16)+3)
 		}
 		var scalar []string

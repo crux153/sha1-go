@@ -28,6 +28,9 @@ TEXT ·blockSSSE3(SB), 0, $336-32
 
 	MOVOU   bswapMask<>(SB), X11
 	MOVOU   sha1K<>+0(SB), X12
+	MOVOU   sha1K<>+16(SB), X10
+	MOVOU   sha1K<>+32(SB), X13
+	MOVOU   sha1K<>+48(SB), X14
 	MOVOU   0(SI), X0
 	PSHUFB  X11, X0
 	MOVO    X0, X8
@@ -65,80 +68,76 @@ loop:
 	MOVO    X1, X4
 	ADDL    0(R11), R8
 	MOVL    CX, R9
+	XORL    DX, R9
 	PALIGNR $8, X0, X4
-	XORL    DX, R9
 	ANDL    BX, R9
-	MOVO    X3, X8
 	XORL    DX, R9
+	MOVO    X3, X8
 	ADDL    R9, R8
-	PSRLO   $4, X8
 	ROLL    $30, BX
+	PSRLO   $4, X8
 	MOVL    BX, R9
-	PXOR    X0, X4
 	XORL    CX, R9
+	PXOR    X0, X4
 	ANDL    AX, R9
-	PXOR    X2, X8
 	ROLL    $5, AX
+	PXOR    X2, X8
 	ADDL    AX, R8
-	PXOR    X8, X4
 	ADDL    4(R11), DX
-	MOVO    X4, X9
+	PXOR    X8, X4
 	XORL    CX, R9
 	ADDL    R9, DX
-	PSLLO   $12, X9
 	ROLL    $25, AX
+	PSHUFD  $0, X4, X9
 	MOVL    AX, R9
+	XORL    BX, R9
 	MOVO    X4, X8
-	XORL    BX, R9
 	ANDL    R8, R9
-	PSLLL   $1, X4
 	ROLL    $5, R8
+	PSLLL   $1, X4
 	ADDL    R8, DX
-	PSRLL   $31, X8
 	ADDL    8(R11), CX
+	PSRLL   $31, X8
 	XORL    BX, R9
-	POR     X8, X4
 	ADDL    R9, CX
+	PSRLQ   $30, X9
 	ROLL    $25, R8
-	MOVO    X9, X8
 	MOVL    R8, R9
-	PSLLL   $2, X9
+	POR     X8, X4
 	XORL    AX, R9
 	ANDL    DX, R9
-	PSRLL   $30, X8
 	ROLL    $5, DX
+	PSLLO   $12, X9
 	ADDL    DX, CX
-	PXOR    X9, X4
 	ADDL    12(R11), BX
+	PXOR    X9, X4
 	XORL    AX, R9
-	PXOR    X8, X4
 	ADDL    R9, BX
-	ROLL    $25, DX
 	MOVO    X4, X8
+	ROLL    $25, DX
 	MOVL    DX, R9
-	XORL    R8, R9
 	PADDL   X12, X8
+	XORL    R8, R9
 	ANDL    CX, R9
-	ROLL    $5, CX
 	MOVO    X8, 64(R11)
+	ROLL    $5, CX
 	ADDL    CX, BX
 
 	// Rounds 4-7; W[20..23].
-	MOVOU   sha1K<>+16(SB), X12
+	MOVO    X2, X5
 	ADDL    16(R11), AX
 	XORL    R8, R9
-	MOVO    X2, X5
+	PALIGNR $8, X1, X5
 	ADDL    R9, AX
 	ROLL    $25, CX
-	PALIGNR $8, X1, X5
-	MOVL    CX, R9
 	MOVO    X4, X8
+	MOVL    CX, R9
 	XORL    DX, R9
-	ANDL    BX, R9
 	PSRLO   $4, X8
+	ANDL    BX, R9
 	ROLL    $5, BX
-	ADDL    BX, AX
 	PXOR    X1, X5
+	ADDL    BX, AX
 	ADDL    20(R11), R8
 	PXOR    X3, X8
 	XORL    DX, R9
@@ -146,12 +145,11 @@ loop:
 	PXOR    X8, X5
 	ROLL    $25, BX
 	MOVL    BX, R9
-	MOVO    X5, X9
+	PSHUFD  $0, X5, X9
 	XORL    CX, R9
-	PSLLO   $12, X9
 	ANDL    AX, R9
-	ROLL    $5, AX
 	MOVO    X5, X8
+	ROLL    $5, AX
 	ADDL    AX, R8
 	PSLLL   $1, X5
 	ADDL    24(R11), DX
@@ -159,28 +157,26 @@ loop:
 	PSRLL   $31, X8
 	ADDL    R9, DX
 	ROLL    $25, AX
-	POR     X8, X5
+	PSRLQ   $30, X9
 	MOVL    AX, R9
-	MOVO    X9, X8
 	XORL    BX, R9
+	POR     X8, X5
 	ANDL    R8, R9
-	PSLLL   $2, X9
 	ROLL    $5, R8
+	PSLLO   $12, X9
 	ADDL    R8, DX
-	PSRLL   $30, X8
 	ADDL    28(R11), CX
 	PXOR    X9, X5
 	XORL    BX, R9
 	ADDL    R9, CX
-	PXOR    X8, X5
+	MOVO    X5, X8
 	ROLL    $25, R8
 	MOVL    R8, R9
-	MOVO    X5, X8
+	PADDL   X10, X8
 	XORL    AX, R9
-	PADDL   X12, X8
 	ANDL    DX, R9
-	ROLL    $5, DX
 	MOVO    X8, 80(R11)
+	ROLL    $5, DX
 	ADDL    DX, CX
 
 	// Rounds 8-11; W[24..27].
@@ -195,18 +191,17 @@ loop:
 	XORL    R8, R9
 	PSRLO   $4, X8
 	ANDL    CX, R9
-	PXOR    X2, X6
 	ROLL    $5, CX
+	PXOR    X2, X6
 	ADDL    CX, BX
-	PXOR    X4, X8
 	ADDL    36(R11), AX
+	PXOR    X4, X8
 	XORL    R8, R9
-	PXOR    X8, X6
 	ADDL    R9, AX
-	MOVO    X6, X9
+	PXOR    X8, X6
 	ROLL    $25, CX
 	MOVL    CX, R9
-	PSLLO   $12, X9
+	PSHUFD  $0, X6, X9
 	XORL    DX, R9
 	ANDL    BX, R9
 	MOVO    X6, X8
@@ -214,32 +209,30 @@ loop:
 	ADDL    BX, AX
 	PSLLL   $1, X6
 	ADDL    40(R11), R8
-	PSRLL   $31, X8
 	XORL    DX, R9
+	PSRLL   $31, X8
 	ADDL    R9, R8
-	POR     X8, X6
 	ROLL    $25, BX
+	PSRLQ   $30, X9
 	MOVL    BX, R9
-	MOVO    X9, X8
 	XORL    CX, R9
-	PSLLL   $2, X9
+	POR     X8, X6
 	ANDL    AX, R9
 	ROLL    $5, AX
-	PSRLL   $30, X8
+	PSLLO   $12, X9
 	ADDL    AX, R8
 	ADDL    44(R11), DX
 	PXOR    X9, X6
 	XORL    CX, R9
 	ADDL    R9, DX
-	PXOR    X8, X6
-	ROLL    $25, AX
 	MOVO    X6, X8
+	ROLL    $25, AX
 	MOVL    AX, R9
+	PADDL   X10, X8
 	XORL    BX, R9
-	PADDL   X12, X8
 	ANDL    R8, R9
-	ROLL    $5, R8
 	MOVO    X8, 96(R11)
+	ROLL    $5, R8
 	ADDL    R8, DX
 
 	// Rounds 12-15; W[28..31].
@@ -254,18 +247,17 @@ loop:
 	XORL    AX, R9
 	PSRLO   $4, X8
 	ANDL    DX, R9
-	PXOR    X3, X7
 	ROLL    $5, DX
+	PXOR    X3, X7
 	ADDL    DX, CX
-	PXOR    X5, X8
 	ADDL    52(R11), BX
+	PXOR    X5, X8
 	XORL    AX, R9
-	PXOR    X8, X7
 	ADDL    R9, BX
-	MOVO    X7, X9
+	PXOR    X8, X7
 	ROLL    $25, DX
 	MOVL    DX, R9
-	PSLLO   $12, X9
+	PSHUFD  $0, X7, X9
 	XORL    R8, R9
 	ANDL    CX, R9
 	MOVO    X7, X8
@@ -273,32 +265,30 @@ loop:
 	ADDL    CX, BX
 	PSLLL   $1, X7
 	ADDL    56(R11), AX
-	PSRLL   $31, X8
 	XORL    R8, R9
+	PSRLL   $31, X8
 	ADDL    R9, AX
-	POR     X8, X7
 	ROLL    $25, CX
+	PSRLQ   $30, X9
 	MOVL    CX, R9
-	MOVO    X9, X8
 	XORL    DX, R9
-	PSLLL   $2, X9
+	POR     X8, X7
 	ANDL    BX, R9
 	ROLL    $5, BX
-	PSRLL   $30, X8
+	PSLLO   $12, X9
 	ADDL    BX, AX
 	ADDL    60(R11), R8
 	PXOR    X9, X7
 	XORL    DX, R9
 	ADDL    R9, R8
-	PXOR    X8, X7
-	ROLL    $25, BX
 	MOVO    X7, X8
+	ROLL    $25, BX
 	MOVL    BX, R9
+	PADDL   X10, X8
 	XORL    CX, R9
-	PADDL   X12, X8
 	ANDL    AX, R9
-	ROLL    $5, AX
 	MOVO    X8, 112(R11)
+	ROLL    $5, AX
 	ADDL    AX, R8
 
 	// Rounds 16-19; W[32..35].
@@ -342,7 +332,7 @@ loop:
 	ADDL    76(R11), AX
 	XORL    R8, R9
 	ADDL    R9, AX
-	PADDL   X12, X8
+	PADDL   X10, X8
 	ROLL    $25, CX
 	MOVL    CX, R9
 	XORL    DX, R9
@@ -389,7 +379,7 @@ loop:
 	ADDL    92(R11), BX
 	ADDL    R9, BX
 	ROLL    $25, DX
-	PADDL   X12, X8
+	PADDL   X10, X8
 	MOVL    DX, R9
 	XORL    R8, R9
 	XORL    CX, R9
@@ -398,46 +388,45 @@ loop:
 	ADDL    CX, BX
 
 	// Rounds 24-27; W[40..43].
-	MOVOU   sha1K<>+32(SB), X12
+	MOVO    X1, X8
 	ADDL    96(R11), AX
 	ADDL    R9, AX
 	ROLL    $25, CX
-	MOVO    X1, X8
+	PALIGNR $8, X0, X8
 	MOVL    CX, R9
 	XORL    DX, R9
-	PALIGNR $8, X0, X8
 	XORL    BX, R9
+	PXOR    X3, X2
 	ROLL    $5, BX
 	ADDL    BX, AX
-	PXOR    X3, X2
+	PXOR    X6, X8
 	ADDL    100(R11), R8
 	ADDL    R9, R8
-	PXOR    X6, X8
 	ROLL    $25, BX
+	PXOR    X8, X2
 	MOVL    BX, R9
 	XORL    CX, R9
-	PXOR    X8, X2
 	XORL    AX, R9
-	ROLL    $5, AX
 	MOVO    X2, X8
+	ROLL    $5, AX
 	ADDL    AX, R8
+	PSLLL   $2, X2
 	ADDL    104(R11), DX
 	ADDL    R9, DX
-	PSLLL   $2, X2
 	ROLL    $25, AX
-	MOVL    AX, R9
 	PSRLL   $30, X8
+	MOVL    AX, R9
 	XORL    BX, R9
 	XORL    R8, R9
-	ROLL    $5, R8
 	POR     X8, X2
+	ROLL    $5, R8
 	ADDL    R8, DX
-	ADDL    108(R11), CX
 	MOVO    X2, X8
+	ADDL    108(R11), CX
 	ADDL    R9, CX
 	ROLL    $25, R8
+	PADDL   X13, X8
 	MOVL    R8, R9
-	PADDL   X12, X8
 	XORL    AX, R9
 	XORL    DX, R9
 	MOVO    X8, 160(R11)
@@ -482,7 +471,7 @@ loop:
 	ADDL    124(R11), DX
 	ADDL    R9, DX
 	ROLL    $25, AX
-	PADDL   X12, X8
+	PADDL   X13, X8
 	MOVL    AX, R9
 	XORL    BX, R9
 	XORL    R8, R9
@@ -528,7 +517,7 @@ loop:
 	ADDL    140(R11), R8
 	ADDL    R9, R8
 	ROLL    $25, BX
-	PADDL   X12, X8
+	PADDL   X13, X8
 	MOVL    BX, R9
 	XORL    CX, R9
 	XORL    AX, R9
@@ -576,7 +565,7 @@ loop:
 	ROLL    $25, CX
 	MOVL    CX, R9
 	XORL    DX, R9
-	PADDL   X12, X8
+	PADDL   X13, X8
 	ANDL    BX, R9
 	MOVL    CX, R10
 	ANDL    DX, R10
@@ -587,8 +576,8 @@ loop:
 	// Rounds 40-43; W[56..59].
 	MOVO    X5, X8
 	ADDL    160(R11), R8
-	ADDL    R9, R8
 	ADDL    R10, R8
+	ADDL    R9, R8
 	ROLL    $25, BX
 	PALIGNR $8, X4, X8
 	MOVL    BX, R9
@@ -601,8 +590,8 @@ loop:
 	ADDL    AX, R8
 	PXOR    X2, X8
 	ADDL    164(R11), DX
-	ADDL    R9, DX
 	ADDL    R10, DX
+	ADDL    R9, DX
 	ROLL    $25, AX
 	PXOR    X8, X6
 	MOVL    AX, R9
@@ -615,8 +604,8 @@ loop:
 	ADDL    R8, DX
 	PSLLL   $2, X6
 	ADDL    168(R11), CX
-	ADDL    R9, CX
 	ADDL    R10, CX
+	ADDL    R9, CX
 	ROLL    $25, R8
 	PSRLL   $30, X8
 	MOVL    R8, R9
@@ -629,10 +618,10 @@ loop:
 	ADDL    DX, CX
 	MOVO    X6, X8
 	ADDL    172(R11), BX
-	ADDL    R9, BX
 	ADDL    R10, BX
+	ADDL    R9, BX
 	ROLL    $25, DX
-	PADDL   X12, X8
+	PADDL   X13, X8
 	MOVL    DX, R9
 	XORL    R8, R9
 	ANDL    CX, R9
@@ -643,56 +632,55 @@ loop:
 	ADDL    CX, BX
 
 	// Rounds 44-47; W[60..63].
-	MOVOU   sha1K<>+48(SB), X12
-	ADDL    176(R11), AX
-	ADDL    R9, AX
-	ADDL    R10, AX
-	ROLL    $25, CX
 	MOVO    X6, X8
+	ADDL    176(R11), AX
+	ADDL    R10, AX
+	ADDL    R9, AX
+	ROLL    $25, CX
+	PALIGNR $8, X5, X8
 	MOVL    CX, R9
 	XORL    DX, R9
 	ANDL    BX, R9
-	PALIGNR $8, X5, X8
 	MOVL    CX, R10
+	PXOR    X0, X7
 	ANDL    DX, R10
 	ROLL    $5, BX
 	ADDL    BX, AX
-	PXOR    X0, X7
-	ADDL    180(R11), R8
-	ADDL    R9, R8
-	ADDL    R10, R8
 	PXOR    X3, X8
+	ADDL    180(R11), R8
+	ADDL    R10, R8
+	ADDL    R9, R8
 	ROLL    $25, BX
+	PXOR    X8, X7
 	MOVL    BX, R9
 	XORL    CX, R9
-	PXOR    X8, X7
 	ANDL    AX, R9
 	MOVL    BX, R10
+	MOVO    X7, X8
 	ANDL    CX, R10
 	ROLL    $5, AX
-	MOVO    X7, X8
 	ADDL    AX, R8
-	ADDL    184(R11), DX
-	ADDL    R9, DX
 	PSLLL   $2, X7
+	ADDL    184(R11), DX
 	ADDL    R10, DX
+	ADDL    R9, DX
 	ROLL    $25, AX
+	PSRLL   $30, X8
 	MOVL    AX, R9
 	XORL    BX, R9
-	PSRLL   $30, X8
 	ANDL    R8, R9
 	MOVL    AX, R10
-	ANDL    BX, R10
 	POR     X8, X7
+	ANDL    BX, R10
 	ROLL    $5, R8
 	ADDL    R8, DX
-	ADDL    188(R11), CX
 	MOVO    X7, X8
-	ADDL    R9, CX
+	ADDL    188(R11), CX
 	ADDL    R10, CX
+	ADDL    R9, CX
 	ROLL    $25, R8
+	PADDL   X14, X8
 	MOVL    R8, R9
-	PADDL   X12, X8
 	XORL    AX, R9
 	ANDL    DX, R9
 	MOVL    R8, R10
@@ -704,8 +692,8 @@ loop:
 	// Rounds 48-51; W[64..67].
 	MOVO    X7, X8
 	ADDL    192(R11), BX
-	ADDL    R9, BX
 	ADDL    R10, BX
+	ADDL    R9, BX
 	ROLL    $25, DX
 	PALIGNR $8, X6, X8
 	MOVL    DX, R9
@@ -718,8 +706,8 @@ loop:
 	ADDL    CX, BX
 	PXOR    X4, X8
 	ADDL    196(R11), AX
-	ADDL    R9, AX
 	ADDL    R10, AX
+	ADDL    R9, AX
 	ROLL    $25, CX
 	PXOR    X8, X0
 	MOVL    CX, R9
@@ -732,8 +720,8 @@ loop:
 	ADDL    BX, AX
 	PSLLL   $2, X0
 	ADDL    200(R11), R8
-	ADDL    R9, R8
 	ADDL    R10, R8
+	ADDL    R9, R8
 	ROLL    $25, BX
 	PSRLL   $30, X8
 	MOVL    BX, R9
@@ -746,10 +734,10 @@ loop:
 	ADDL    AX, R8
 	MOVO    X0, X8
 	ADDL    204(R11), DX
-	ADDL    R9, DX
 	ADDL    R10, DX
+	ADDL    R9, DX
 	ROLL    $25, AX
-	PADDL   X12, X8
+	PADDL   X14, X8
 	MOVL    AX, R9
 	XORL    BX, R9
 	ANDL    R8, R9
@@ -762,8 +750,8 @@ loop:
 	// Rounds 52-55; W[68..71].
 	MOVO    X0, X8
 	ADDL    208(R11), CX
-	ADDL    R9, CX
 	ADDL    R10, CX
+	ADDL    R9, CX
 	ROLL    $25, R8
 	PALIGNR $8, X7, X8
 	MOVL    R8, R9
@@ -776,8 +764,8 @@ loop:
 	ADDL    DX, CX
 	PXOR    X5, X8
 	ADDL    212(R11), BX
-	ADDL    R9, BX
 	ADDL    R10, BX
+	ADDL    R9, BX
 	ROLL    $25, DX
 	PXOR    X8, X1
 	MOVL    DX, R9
@@ -790,8 +778,8 @@ loop:
 	ADDL    CX, BX
 	PSLLL   $2, X1
 	ADDL    216(R11), AX
-	ADDL    R9, AX
 	ADDL    R10, AX
+	ADDL    R9, AX
 	ROLL    $25, CX
 	PSRLL   $30, X8
 	MOVL    CX, R9
@@ -804,10 +792,10 @@ loop:
 	ADDL    BX, AX
 	MOVO    X1, X8
 	ADDL    220(R11), R8
-	ADDL    R9, R8
 	ADDL    R10, R8
+	ADDL    R9, R8
 	ROLL    $25, BX
-	PADDL   X12, X8
+	PADDL   X14, X8
 	MOVL    BX, R9
 	XORL    CX, R9
 	ANDL    AX, R9
@@ -820,8 +808,8 @@ loop:
 	// Rounds 56-59; W[72..75].
 	MOVO    X1, X8
 	ADDL    224(R11), DX
-	ADDL    R9, DX
 	ADDL    R10, DX
+	ADDL    R9, DX
 	ROLL    $25, AX
 	PALIGNR $8, X0, X8
 	MOVL    AX, R9
@@ -834,8 +822,8 @@ loop:
 	ADDL    R8, DX
 	PXOR    X6, X8
 	ADDL    228(R11), CX
-	ADDL    R9, CX
 	ADDL    R10, CX
+	ADDL    R9, CX
 	PXOR    X8, X2
 	ROLL    $25, R8
 	MOVL    R8, R9
@@ -848,8 +836,8 @@ loop:
 	PSLLL   $2, X2
 	ADDL    DX, CX
 	ADDL    232(R11), BX
-	ADDL    R9, BX
 	ADDL    R10, BX
+	ADDL    R9, BX
 	PSRLL   $30, X8
 	ROLL    $25, DX
 	MOVL    DX, R9
@@ -862,9 +850,9 @@ loop:
 	MOVO    X2, X8
 	ADDL    CX, BX
 	ADDL    236(R11), AX
-	ADDL    R9, AX
-	PADDL   X12, X8
 	ADDL    R10, AX
+	PADDL   X14, X8
+	ADDL    R9, AX
 	ROLL    $25, CX
 	MOVL    CX, R9
 	XORL    DX, R9
@@ -911,7 +899,7 @@ loop:
 	ADDL    252(R11), BX
 	ADDL    R9, BX
 	ROLL    $25, DX
-	PADDL   X12, X8
+	PADDL   X14, X8
 	MOVL    DX, R9
 	XORL    R8, R9
 	XORL    CX, R9
@@ -920,39 +908,38 @@ loop:
 	ADDL    CX, BX
 
 	// Rounds 64-67; next block W[0..3].
-	MOVOU   sha1K<>+0(SB), X12
+	MOVOU   0(R12), X0
 	ADDL    256(R11), AX
 	ADDL    R9, AX
 	ROLL    $25, CX
 	MOVL    CX, R9
 	XORL    DX, R9
 	XORL    BX, R9
-	MOVOU   0(R12), X0
 	ROLL    $5, BX
+	PSHUFB  X11, X0
 	ADDL    BX, AX
 	ADDL    260(R11), R8
 	ADDL    R9, R8
 	ROLL    $25, BX
-	PSHUFB  X11, X0
 	MOVL    BX, R9
 	XORL    CX, R9
+	MOVO    X0, X8
 	XORL    AX, R9
 	ROLL    $5, AX
 	ADDL    AX, R8
-	MOVO    X0, X8
 	ADDL    264(R11), DX
 	ADDL    R9, DX
 	ROLL    $25, AX
 	MOVL    AX, R9
+	PADDL   X12, X8
 	XORL    BX, R9
 	XORL    R8, R9
-	PADDL   X12, X8
 	ROLL    $5, R8
 	ADDL    R8, DX
 	ADDL    268(R11), CX
 	ADDL    R9, CX
-	ROLL    $25, R8
 	MOVO    X8, 0(R11)
+	ROLL    $25, R8
 	MOVL    R8, R9
 	XORL    AX, R9
 	XORL    DX, R9
