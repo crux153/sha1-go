@@ -43,3 +43,19 @@ Each fuzz worker process runs with `GOMAXPROCS=1`. With the default
 throughput by about 20%. When the corpora are replayed, nearly all
 time goes to the two block functions, and GC takes under 1%.
 
+## Results
+
+### 2026-10-22, 3.5 hours
+
+Run against commit b1323f4, with no failures. The corpus is shared
+by both code paths.
+
+| Target      | SSSE3 executions | Scalar executions | Corpus |
+|-------------|-----------------:|------------------:|-------:|
+| `FuzzSum`   |           3.55e9 |            1.43e9 |      4 |
+| `FuzzOps`   |           1.98e9 |            0.81e9 |    170 |
+| `FuzzState` |           2.77e9 |            1.48e9 |     99 |
+
+`TestHunt` completed both sweeps on both paths. It then checked random
+inputs, for a total of 93.8M inputs (77 TB) on the SSSE3 path and
+40.8M inputs (31 TB) on the scalar path, with no failures.
